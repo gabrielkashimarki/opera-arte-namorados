@@ -1361,6 +1361,85 @@ body.menu-open { overflow: hidden; }
 }
 
 </style>
+
+<!-- ═══ TRACKING STACK — Opera Arte (server-side Meta CAPI + GA4) ═══ -->
+<!-- Meta Pixel -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1012550094603520');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1012550094603520&ev=PageView&noscript=1"/></noscript>
+
+<!-- Tracking server-side -->
+<script>
+(function(){
+  var TRACKING_SERVER = 'https://opera-arte-namorados.pages.dev';
+  var TRK_KEY = 'krob_trk';
+
+  function getTrk() {
+    var trk = sessionStorage.getItem(TRK_KEY);
+    if (!trk) { trk = crypto.randomUUID(); sessionStorage.setItem(TRK_KEY, trk); }
+    return trk;
+  }
+
+  function firePageView() {
+    var payload = JSON.stringify({
+      event_name: 'PageView',
+      event_id: crypto.randomUUID(),
+      event_time: Math.floor(Date.now() / 1000),
+      event_source_url: window.location.href,
+      user_data: {}, custom_data: {}
+    });
+    try { navigator.sendBeacon(TRACKING_SERVER + '/tracker', new Blob([payload], {type: 'application/json'})); } catch(e) {}
+  }
+
+  function fireLead(label) {
+    var trk = getTrk();
+    var eventId = crypto.randomUUID();
+    try { if (window.fbq) fbq('track', 'Lead', {content_name: label}, {eventID: eventId}); } catch(e) {}
+    var payload = JSON.stringify({
+      event_name: 'Lead', event_id: eventId,
+      event_time: Math.floor(Date.now() / 1000),
+      event_source_url: window.location.href,
+      user_data: {}, custom_data: { button_label: label, trk: trk }
+    });
+    try { navigator.sendBeacon(TRACKING_SERVER + '/tracker', new Blob([payload], {type: 'application/json'})); } catch(e) {}
+  }
+
+  function rewriteWhatsAppLinks() {
+    var trk = getTrk();
+    var params = new URLSearchParams(window.location.search);
+    var extra = '';
+    ['gclid','wbraid','gbraid'].forEach(function(k) {
+      var v = params.get(k); if (v) extra += '&' + k + '=' + encodeURIComponent(v);
+    });
+    document.querySelectorAll('a[href*="wa.me"]').forEach(function(link) {
+      var label = link.textContent.trim().substring(0, 50) || 'WhatsApp CTA';
+      link.setAttribute('href', TRACKING_SERVER + '/go/' + trk + '?label=' + encodeURIComponent(label) + extra);
+      link.setAttribute('target', '_blank');
+      link.addEventListener('click', function() { fireLead(label); });
+    });
+  }
+
+  function trackPhoneLinks() {
+    document.querySelectorAll('a[href^="tel:"]').forEach(function(link) {
+      link.addEventListener('click', function() { fireLead('Telefone: ' + link.textContent.trim()); });
+    });
+  }
+
+  firePageView();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { rewriteWhatsAppLinks(); trackPhoneLinks(); });
+  } else { rewriteWhatsAppLinks(); trackPhoneLinks(); }
+})();
+</script>
+<!-- ═══ FIM TRACKING ═══ -->
+
 </head>
 <body>
 <a href="#main" class="skip-link">Pular para conteúdo principal</a>
